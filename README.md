@@ -81,6 +81,66 @@ Once the server is running, you can access:
 - **Swagger UI**: http://localhost:3000/docs
 - **OpenAPI JSON**: http://localhost:3000/docs/json
 - **Health Check**: http://localhost:3000/health
+- **Current User**: http://localhost:3000/api/me
+- **Auth Endpoints**: http://localhost:3000/api/auth/*
+
+## Authentication
+
+The server includes Better Auth with session middleware that automatically injects user sessions into all routes.
+
+### Available Auth Endpoints
+
+Better Auth provides the following endpoints out of the box:
+
+- `POST /api/auth/sign-up/email` - Register with email/password
+- `POST /api/auth/sign-in/email` - Sign in with email/password
+- `POST /api/auth/sign-out` - Sign out
+- `GET /api/auth/session` - Get current session
+
+### Using Session Middleware
+
+The session middleware is automatically applied to all routes. Access session data in any route:
+
+```typescript
+import { Elysia } from 'elysia';
+
+export const myRoutes = new Elysia()
+  .get('/api/example', ({ session }) => {
+    if (!session.user) {
+      return { message: 'Not authenticated' };
+    }
+
+    return {
+      message: 'Authenticated!',
+      user: session.user,
+    };
+  });
+```
+
+### Creating Protected Routes
+
+Use the `authGuard` middleware to require authentication:
+
+```typescript
+import { Elysia } from 'elysia';
+import { authGuard } from '../lib/session-middleware';
+
+export const protectedRoutes = new Elysia({ prefix: '/api/protected' })
+  .use(authGuard) // Requires authentication for all routes in this group
+  .get('/profile', ({ session }) => {
+    // session.user is guaranteed to be non-null here
+    return { user: session.user };
+  });
+```
+
+### Database Schema
+
+The authentication system uses the following tables:
+
+- **users** - User accounts with email/password
+- **sessions** - Active user sessions
+- **accounts** - OAuth provider accounts (for future social login)
+- **verifications** - Email verification and password reset tokens
 
 ## Available Scripts
 
@@ -96,16 +156,19 @@ Once the server is running, you can access:
 ```
 .
 ├── src/
-│   ├── index.ts          # Main server entry point
+│   ├── index.ts                  # Main server entry point
 │   ├── db/
-│   │   ├── index.ts      # Database connection
-│   │   └── schema.ts     # Database schema
+│   │   ├── index.ts              # Database connection
+│   │   └── schema.ts             # Database schema (users, sessions, accounts, verifications)
 │   ├── lib/
-│   │   └── auth.ts       # Better Auth configuration
+│   │   ├── auth.ts               # Better Auth configuration
+│   │   └── session-middleware.ts # Session injection & auth guard middleware
 │   └── routes/
-│       └── health.ts     # Health check endpoint
-├── drizzle/              # Database migrations
-├── drizzle.config.ts     # Drizzle configuration
+│       ├── health.ts             # Health check endpoint
+│       └── protected.ts          # Example protected routes
+├── drizzle/                      # Database migrations
+├── drizzle.config.ts             # Drizzle configuration (with snake_case)
+├── .env.example                  # Environment variables template
 ├── package.json
 └── tsconfig.json
 ```
